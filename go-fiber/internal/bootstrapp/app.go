@@ -3,6 +3,7 @@ package bootstrapp
 import (
 	"errors"
 
+	"github.com/dist-r/rcontacts-rest/go-fiber/internal/modules/contact"
 	"github.com/dist-r/rcontacts-rest/go-fiber/internal/modules/user"
 	"github.com/dist-r/rcontacts-rest/go-fiber/internal/repository/raw"
 	"github.com/dist-r/rcontacts-rest/go-fiber/pkg/app"
@@ -15,8 +16,8 @@ import (
 )
 
 func SetupApp() {
-	config.InitDB()
 	godotenv.Load()
+	config.InitDB()
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 
@@ -60,13 +61,23 @@ func SetupApp() {
 	app.Use(recover.New())
 
 	// WIRING DEPENDENCIES
-	dbraw := raw.NewPGRawUserRepository(config.DB)
-	userService := user.NewUserService(dbraw)
+
+	// USER
+	dbUser := raw.NewPGRawUserRepository(config.DB)
+	userService := user.NewUserService(dbUser)
 	userHandler := user.NewUserHandler(*userService)
 
-	// REGISTER ROUTES
-	userRoutes := app.Group("/api/v1")
-	user.UserRoutes(userRoutes, userHandler)
+	// CONTACT
+	dbContact := raw.NewPGRawContactRepository(config.DB)
+	contactService := contact.NewContactService(dbContact)
+	contactHandler := contact.NewContactHandler(*contactService)
 
-	app.Listen(":3000")
+	// REGISTER ROUTES
+	rootRoutes := app.Group("/api/v1")
+	user.UserRoutes(rootRoutes, userHandler)
+	contact.ContactRoutes(rootRoutes, contactHandler)
+
+	if err := app.Listen(":3000"); err != nil {
+		panic(err)
+	}
 }
